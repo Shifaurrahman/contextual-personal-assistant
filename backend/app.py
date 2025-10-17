@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-app.py - Enhanced with LangChain Agents (FULLY FIXED)
+app.py - Enhanced with LangChain Agents
 
 FastAPI backend for Contextual Personal Assistant with dual LangChain agents:
 1. Ingestion Agent - Enhanced entity extraction with LLM

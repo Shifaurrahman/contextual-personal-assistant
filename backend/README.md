@@ -6,9 +6,14 @@ python -m spacy download en_core_web_sm
 
 pip install -U sentence-transformers huggingface-hub
 
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+pip install -U langchain-openai
+
 
 pip install --upgrade langchain
+
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+
 
 
 # Contextual Personal Assistant - LangChain Implementation
