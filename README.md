@@ -119,7 +119,101 @@ The Thinking Agent analyzes all your data and provides:
 - **🔗 Merge Suggestions**: Envelopes with overlapping topics
 - **💡 Next Steps**: AI recommendations for project completion
 
-## 🏗️ Architecture
+## 🏗️ Architecture & Design
+
+### Agent Development Framework Choice: **LangChain**
+**Justification**: LangChain was selected as the primary agent development framework because:
+- **Modular Design**: Clean separation between ingestion and thinking agents
+- **LLM Integration**: Seamless OpenAI GPT-4o-mini integration with structured prompts
+- **Error Handling**: Built-in fallback mechanisms when LLM calls fail
+- **Prompt Management**: Template-based prompts ensure consistent AI responses
+- **Extensibility**: Easy to add new agents or modify existing logic
+
+### Storage Mechanism: **SQLite**
+**Justification**: SQLite was chosen for local storage because:
+- **Zero Configuration**: No external database server required
+- **Embedding Support**: Native BLOB storage for vector embeddings
+- **Performance**: Sufficient for single-user personal assistant use case
+- **Portability**: Single file database, easy to backup and transfer
+- **ACID Compliance**: Reliable data integrity for user's personal data
+
+### System Architecture Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    USER INPUT (Raw Note)                     │
+│         "Call Sarah about Q3 budget next Monday"             │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│         INGESTION & ORGANIZATION AGENT (LangChain)          │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  1. LLM Entity Extraction                           │   │
+│  │     • Card Type Classification (Task/Reminder/Note) │   │
+│  │     • Date/Time Parsing (with context awareness)    │   │
+│  │     • Assignee Detection (NER via LLM)              │   │
+│  │     • Keyword Extraction (semantic understanding)   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                     │                                         │
+│                     ▼                                         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  2. Envelope Assignment (LLM + Embeddings)          │   │
+│  │     • Semantic matching with existing envelopes     │   │
+│  │     • Context-aware grouping decisions              │   │
+│  │     • Auto-create new envelopes when needed         │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                     │                                         │
+│                     ▼                                         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  3. Context Update                                 │   │
+│  │     • Update user's active projects                 │   │
+│  │     • Track contacts and deadlines                  │   │
+│  │     • Refine themes and keywords                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    STRUCTURED OUTPUT                          │
+│                                                               │
+│  📝 Card: {                                                  │
+│    type: "Task",                                             │
+│    description: "Call Sarah about Q3 budget",                │
+│    date: "2024-01-15",                                       │
+│    assignee: "Sarah",                                         │
+│    context_keywords: ["budget", "Q3", "call"]                │
+│  }                                                           │
+│                                                               │
+│  📦 Envelope: "Budget & Sarah" (ID: 3)                       │
+│                                                               │
+│  👤 Context Updates: {                                       │
+│    active_projects: ["Budget & Sarah"],                       │
+│    contacts: ["Sarah"],                                      │
+│    upcoming_deadlines: ["2024-01-15"]                        │
+│  }                                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Thinking Agent Design
+
+The Thinking Agent operates on a scheduled basis (triggered via `/think` endpoint) and analyzes all existing data:
+
+**Logic Flow**:
+1. **Data Collection**: Gather all Cards, Envelopes, and User Context
+2. **Pattern Analysis**: Cross-reference data for patterns and relationships
+3. **Conflict Detection**: Identify scheduling conflicts and overlaps
+4. **Insight Generation**: Use LLM to generate natural language summaries
+5. **Recommendation Engine**: Suggest next steps and optimizations
+
+**Analysis Categories**:
+- **Scheduling Conflicts**: Multiple tasks for same person/date
+- **Duplicate Detection**: Similar tasks across different envelopes
+- **Priority Tasks**: Upcoming deadlines (next 3 days)
+- **Overdue Items**: Missed deadlines with severity tracking
+- **Envelope Merging**: Suggest consolidation of related topics
+- **Next Steps**: AI-generated recommendations for project completion
 
 ### Backend (FastAPI)
 - **`app.py`**: Main FastAPI application with dual LangChain agents
@@ -132,20 +226,6 @@ The Thinking Agent analyzes all your data and provides:
 - **Real-time Updates**: Live data refresh and processing
 - **Visual Analytics**: Progress bars, metrics, and insights
 - **Responsive Design**: Clean, intuitive user experience
-
-### Key Components
-
-```
-📦 Envelopes (Topics/Projects)
-├── 📝 Cards (Individual Notes)
-│   ├── Type: Task/Reminder/Idea
-│   ├── Entities: Date, Time, Assignee
-│   ├── Keywords: Context tags
-│   └── Embedding: Semantic vector
-└── 🤖 AI Agents
-    ├── Ingestion: Enhanced extraction
-    └── Thinking: Pattern analysis
-```
 
 ## 🔧 API Endpoints
 
@@ -171,6 +251,27 @@ The Thinking Agent analyzes all your data and provides:
 ```bash
 OPENAI_API_KEY=sk-your-key-here  # Required for AI agents
 ```
+
+### Model Selection & Justification
+
+**LLM Model: OpenAI GPT-4o-mini**
+- **Reasoning**: Chosen for superior entity extraction and classification accuracy
+- **Cost Consideration**: ~$0.15/1M input tokens, ~$0.60/1M output tokens
+- **Scalability**: API-based, scales automatically with usage
+- **Performance**: Excellent at understanding context and extracting structured data
+- **Alternative**: Could use local models (Llama, Mistral) but would require significant infrastructure
+
+**Embedding Model: all-MiniLM-L6-v2**
+- **Reasoning**: Lightweight, fast, and effective for semantic similarity
+- **Size**: 22MB, runs locally without API costs
+- **Performance**: 384 dimensions, good balance of accuracy and speed
+- **Alternative**: Could use OpenAI embeddings but adds API costs
+
+**NLP Model: spaCy en_core_web_sm**
+- **Reasoning**: Reliable baseline NER and linguistic processing
+- **Performance**: Fast local processing, good entity recognition
+- **Fallback**: Used when LLM extraction fails
+- **Alternative**: Could use larger spaCy models for better accuracy
 
 ### Model Configuration
 - **Embedding Model**: `all-MiniLM-L6-v2` (384 dimensions)
